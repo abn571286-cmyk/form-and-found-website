@@ -14,14 +14,29 @@ type ProductCatalogValue = {
 const ProductCatalogContext = createContext<ProductCatalogValue | null>(null);
 
 export function ProductCatalogProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(supabase ? [] : demoProducts);
-  const [state, setState] = useState<CatalogState>(supabase ? "loading" : "demo");
-  const [error, setError] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>(
+    supabase || !import.meta.env.DEV ? [] : demoProducts,
+  );
+  const [state, setState] = useState<CatalogState>(
+    supabase ? "loading" : import.meta.env.DEV ? "demo" : "error",
+  );
+  const [error, setError] = useState<string | null>(
+    supabase || import.meta.env.DEV
+      ? null
+      : "The live catalog is not configured for this deployment.",
+  );
 
   async function refresh() {
     if (!supabase) {
-      setProducts(demoProducts);
-      setState("demo");
+      if (import.meta.env.DEV) {
+        setProducts(demoProducts);
+        setState("demo");
+        setError(null);
+      } else {
+        setProducts([]);
+        setState("error");
+        setError("The live catalog is not configured for this deployment.");
+      }
       return;
     }
 

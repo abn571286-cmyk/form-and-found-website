@@ -1,12 +1,14 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { store } from "../data/store";
+import { supabase } from "../lib/supabase";
 
 type ContactValues = {
   name: string;
   email: string;
   subject: string;
   message: string;
+  company: string;
 };
 
 type ContactField = keyof ContactValues;
@@ -16,15 +18,31 @@ const initialValues: ContactValues = {
   email: "",
   subject: "",
   message: "",
+  company: "",
 };
 
-const fieldNames: ContactField[] = ["name", "email", "subject", "message"];
+const fieldNames: Array<Exclude<ContactField, "company">> = ["name", "email", "subject", "message"];
+const submissionStorageKey = "form-and-found-contact-submission";
+
+function getSubmissionId() {
+  const existing = sessionStorage.getItem(submissionStorageKey);
+  if (existing && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(existing)) {
+    return existing;
+  }
+  const submissionId = crypto.randomUUID();
+  sessionStorage.setItem(submissionStorageKey, submissionId);
+  return submissionId;
+}
 
 function validateField(field: ContactField, value: string): string {
-  if (!value.trim()) return "This field is required.";
-  if (field === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
-    return "Enter a valid email address, such as name@example.com.";
+  const clean = value.trim();
+  if (!clean) return "This field is required.";
+  if (field === "name" && clean.length > 100) return "Name must be 100 characters or fewer.";
+  if (field === "email" && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean) || clean.length > 254)) {
+    return "Enter a valid email address.";
   }
+  if (field === "subject" && clean.length > 160) return "Subject must be 160 characters or fewer.";
+  if (field === "message" && clean.length > 5000) return "Message must be 5,000 characters or fewer.";
   return "";
 }
 
@@ -32,8 +50,11 @@ export default function Contact() {
   const [values, setValues] = useState<ContactValues>(initialValues);
   const [errors, setErrors] = useState<Partial<Record<ContactField, string>>>({});
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formStatus, setFormStatus] = useState("");
-  const fieldRefs = useRef<Record<ContactField, HTMLInputElement | HTMLTextAreaElement | null>>({
+  const [statusError, setStatusError] = useState(false);
+  const submittingRef = useRef(false);
+  const fieldRefs = useRef<Record<Exclude<ContactField, "company">, HTMLInputElement | HTMLTextAreaElement | null>>({
     name: null,
     email: null,
     subject: null,
@@ -41,6 +62,8 @@ export default function Contact() {
   });
 
   function handleChange(field: ContactField, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    if (submittingRef.current) return;
+    sessionStorage.removeItem(submissionStorageKey);
     const value = event.target.value;
     setValues((current) => ({ ...current, [field]: value }));
     setFormStatus("");
@@ -53,8 +76,9 @@ export default function Contact() {
     setErrors((current) => ({ ...current, [field]: validateField(field, values[field]) }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current) return;
     setAttemptedSubmit(true);
     const nextErrors = Object.fromEntries(
       fieldNames.map((field) => [field, validateField(field, values[field])]),
@@ -67,8 +91,52 @@ export default function Contact() {
       fieldRefs.current[firstInvalid]?.focus();
       return;
     }
+    if (!supabase) {
+      setStatusError(true);
+      setFormStatus("Contact submissions are not configured here. Please contact us directly using the details shown.");
+      return;
+    }
 
-    setFormStatus(`Your details are complete, but this demo form does not send messages. Please email ${store.email}.`);
+    submittingRef.current = true;
+    setSubmitting(true);
+    setStatusError(false);
+    setFormStatus("");
+    try {
+      const { data, error } = await supabase.functions.invoke("contact-message", {
+        body: {
+          name: values.name.trim(),
+          email: values.email.trim().toLowerCase(),
+          subject: values.subject.trim(),
+          message: values.message.trim(),
+          company: values.company,
+          submission_id: getSubmissionId(),
+        },
+      });
+      if (error) throw error;
+      if (typeof data !== "object" || data === null || !("saved" in data) || data.saved !== true) {
+        throw new Error("The server did not confirm that your message was saved.");
+      }
+
+      if (data.notificationSent === true) {
+        setFormStatus("Your message was saved and sent to our support inbox. We’ll be in touch.");
+      } else if (data.notificationConfigured === false) {
+        setFormStatus(`Your message was saved, but email notifications are not configured. For a direct reply, email ${store.email} or ${store.emailAdditional}.`);
+      } else {
+        setFormStatus(`Your message was saved, but our email notification could not be sent. You can reach us directly at ${store.email} or ${store.emailAdditional}.`);
+      }
+      setValues(initialValues);
+      setErrors({});
+      setAttemptedSubmit(false);
+      sessionStorage.removeItem(submissionStorageKey);
+    } catch (cause) {
+      setStatusError(true);
+      setFormStatus(cause instanceof Error
+        ? `We could not confirm that your message was saved: ${cause.message}`
+        : "We could not confirm that your message was saved. Please try again or contact us directly.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -76,22 +144,31 @@ export default function Contact() {
       <header className="page-heading">
         <p className="eyebrow">FORM & FOUND / GET IN TOUCH</p>
         <h1>Contact<span>.</span></h1>
-        <p>Questions about a piece? We’d be glad to hear from you.</p>
+        <p>Questions about a piece or an order? We’d be glad to hear from you.</p>
       </header>
       <div className="contact-layout">
         <section className="contact-details" aria-labelledby="contact-details-heading">
           <p className="eyebrow">A NOTE FROM YOU</p>
           <h2 id="contact-details-heading">Let’s talk.</h2>
-          <p>Send a note using the demo form, or reach us directly at the configured email address.</p>
-          <a className="contact-email-link" href={`mailto:${store.email}`}>{store.email}</a>
-          <p className="contact-demo-note">
-            The form is for demonstration only. It does not store or send your message.
-          </p>
+          <p>Send us a message or reach our team directly.</p>
+          <div className="contact-method-list">
+            <div>
+              <strong>EMAIL</strong>
+              <a className="contact-email-link" href={`mailto:${store.email}`}>{store.email}</a>
+              <a className="contact-email-link" href={`mailto:${store.emailAdditional}`}>{store.emailAdditional}</a>
+            </div>
+            <div>
+              <strong>PHONE</strong>
+              <a className="contact-email-link" href={`tel:${store.phoneLink}`}>{store.phone}</a>
+              <a className="contact-email-link" href={`tel:${store.phoneAdditionalLink}`}>{store.phoneAdditional}</a>
+            </div>
+          </div>
+          {!supabase && <p className="contact-demo-note">Online submissions are unavailable until the Supabase project is configured. Please contact us by email or phone.</p>}
         </section>
 
-        <form className="contact-form" onSubmit={handleSubmit} noValidate aria-describedby="contact-form-note">
+        <form className="contact-form" onSubmit={(event) => void handleSubmit(event)} noValidate aria-describedby="contact-form-note">
           <p className="contact-form-note" id="contact-form-note">
-            Demo form — messages are not sent. Email us directly if you need a reply.
+            Your message is securely submitted to FORM & FOUND support. Please do not include payment details or passwords.
           </p>
           <label htmlFor="contact-name">Name</label>
           <input
@@ -100,6 +177,7 @@ export default function Contact() {
             name="name"
             type="text"
             autoComplete="name"
+            maxLength={100}
             required
             value={values.name}
             onChange={(event) => handleChange("name", event)}
@@ -117,6 +195,7 @@ export default function Contact() {
             type="email"
             autoComplete="email"
             inputMode="email"
+            maxLength={254}
             required
             value={values.email}
             onChange={(event) => handleChange("email", event)}
@@ -132,6 +211,7 @@ export default function Contact() {
             id="contact-subject"
             name="subject"
             type="text"
+            maxLength={160}
             required
             value={values.subject}
             onChange={(event) => handleChange("subject", event)}
@@ -147,6 +227,7 @@ export default function Contact() {
             id="contact-message"
             name="message"
             rows={6}
+            maxLength={5000}
             required
             value={values.message}
             onChange={(event) => handleChange("message", event)}
@@ -156,8 +237,14 @@ export default function Contact() {
           />
           {errors.message && <p className="contact-field-error" id="contact-message-error" role="alert">{errors.message}</p>}
 
-          <button className="button button-lime" type="submit">Check message details</button>
-          {formStatus && <p className="contact-form-status" role="status">{formStatus}</p>}
+          <div className="contact-honeypot" aria-hidden="true">
+            <label htmlFor="contact-company">Leave this field empty</label>
+            <input id="contact-company" name="company" tabIndex={-1} autoComplete="off" value={values.company} onChange={(event) => handleChange("company", event)} />
+          </div>
+          <button className="button button-lime" type="submit" disabled={submitting}>
+            {submitting ? "SENDING…" : "SEND MESSAGE ↗"}
+          </button>
+          {formStatus && <p className={`contact-form-status${statusError ? " is-error" : ""}`} role={statusError ? "alert" : "status"}>{formStatus}</p>}
         </form>
       </div>
       <p className="contact-return"><Link className="text-link" to="/">Return home ↗</Link></p>

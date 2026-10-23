@@ -7,10 +7,14 @@ export type OrderDraft = {
   customerPhone: string;
   shippingAddress: {
     full_name: string;
-    address: string;
-    city: string;
+    recipient_phone: string;
+    province: string;
+    district: string;
+    municipality: string;
+    ward: string;
+    street: string;
     postal_code: string;
-    country: string;
+    delivery_instructions: string;
   };
   items: Array<{
     product: Product;
@@ -22,9 +26,9 @@ export type OrderDraft = {
 
 export async function createAuthenticatedOrder(
   draft: OrderDraft,
-  idempotencyKey = crypto.randomUUID(),
+  idempotencyKey: string = crypto.randomUUID(),
 ) {
-  if (!supabase) throw new Error("Supabase is not configured. This storefront remains in demo checkout mode.");
+  if (!supabase) throw new Error("Order services are not configured. Please try again later.");
 
   const { data: userResult, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
@@ -39,28 +43,28 @@ export async function createAuthenticatedOrder(
     return { variant_id: variantId, quantity };
   });
 
-  const shippingAddress: Json = {
-    full_name: draft.shippingAddress.full_name,
-    address: draft.shippingAddress.address,
-    city: draft.shippingAddress.city,
-    postal_code: draft.shippingAddress.postal_code,
-    country: draft.shippingAddress.country,
-  };
-  const orderItems: Json = items.map((item) => ({ ...item }));
+  const shippingAddress: Json = { ...draft.shippingAddress };
+  const rpcItems: Json = items.map((item) => ({ ...item }));
   const { data: orderId, error } = await supabase.rpc("create_authenticated_order", {
     p_idempotency_key: idempotencyKey,
     p_customer_email: draft.customerEmail,
     p_customer_phone: draft.customerPhone,
     p_shipping_address: shippingAddress,
-    p_items: orderItems,
+    p_items: rpcItems,
   });
   if (error) throw error;
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id,order_number,order_status,payment_status,subtotal_npr,delivery_fee_npr,total_npr")
+    .select("id,order_number,order_status,payment_status,payment_method,subtotal_npr,delivery_fee_npr,total_npr,customer_email,customer_phone,shipping_address,created_at")
     .eq("id", orderId)
     .single();
   if (orderError) throw orderError;
-  return order;
+  const { data: orderItems, error: itemsError } = await supabase
+    .from("order_items")
+    .select("id,product_name,variant_label,quantity,unit_price_npr,line_total_npr")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+  if (itemsError) throw itemsError;
+  return { ...order, items: orderItems };
 }

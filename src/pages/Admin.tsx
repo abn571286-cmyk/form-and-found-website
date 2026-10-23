@@ -13,6 +13,7 @@ import {
   type AdminProduct,
   type AdminOrder,
   type AdminOrderItem,
+  type AdminPaymentTransaction,
   type AdminVariant,
   type AdminVariantInput,
 } from "../lib/admin-products";
@@ -136,6 +137,7 @@ export default function Admin() {
   const [variants, setVariants] = useState<AdminVariant[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [orderItems, setOrderItems] = useState<AdminOrderItem[]>([]);
+  const [paymentTransactions, setPaymentTransactions] = useState<AdminPaymentTransaction[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [section, setSection] = useState<"products" | "inventory" | "orders">("products");
   const [query, setQuery] = useState("");
@@ -180,6 +182,7 @@ export default function Admin() {
       setVariants(result.variants);
       setOrders(orderResult.orders);
       setOrderItems(orderResult.items);
+      setPaymentTransactions(orderResult.payments);
     })().catch(async (cause: unknown) => {
       if (!active) return;
       setError(cause instanceof Error ? cause.message : "Unable to verify administrator access.");
@@ -222,6 +225,7 @@ export default function Admin() {
     const result = await loadAdminOrders();
     setOrders(result.orders);
     setOrderItems(result.items);
+    setPaymentTransactions(result.payments);
   }
 
   function openNewProduct() {
@@ -384,7 +388,7 @@ export default function Admin() {
         <section className="admin-setup">
           <p className="eyebrow">BACKEND CONFIGURATION REQUIRED</p>
           <h1>YOUR STORE.<br />YOUR CONTROL.</h1>
-          <p>The dashboard is connected to real Supabase Auth, database policies, and image storage when configured. No administrator login or product changes are simulated in this demo.</p>
+          <p>Admin sign-in, product management, and image storage require a configured Supabase project. No admin changes can be made until the backend is connected.</p>
           <ol>
             <li>Create a Supabase project and add the public project URL and anon key to <code>.env.local</code>.</li>
             <li>Apply the SQL migration in <code>supabase/migrations</code>.</li>
@@ -505,6 +509,7 @@ export default function Admin() {
                   <button className="admin-order-open" type="button" onClick={() => setSelectedOrderId(order.id)}><span>{order.order_number}</span><span>{new Date(order.created_at).toLocaleString()}</span><span>{order.customer_email}</span><strong>{formatPrice(order.total_npr)}</strong></button>
                   <span className={`admin-status status-${order.order_status}`}>{order.order_status}</span>
                   <span className={`admin-status payment-${order.payment_status}`}>PAYMENT: {order.payment_status}</span>
+                  <span className="admin-status">GATEWAY: {order.payment_method ?? "—"}</span>
                   <label>ORDER STATUS<select aria-label={`Order status for ${order.order_number}`} disabled={busy} value={order.order_status} onChange={(event) => void changeOrderStatus(order, event.target.value as AdminOrder["order_status"])}>{["pending", "processing", "shipped", "delivered", "cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
                 </article>
               ))}
@@ -579,7 +584,7 @@ export default function Admin() {
         const address = typeof order.shipping_address === "object" && order.shipping_address !== null && !Array.isArray(order.shipping_address)
           ? Object.entries(order.shipping_address).map(([key, value]) => `${key}: ${String(value)}`).join(" · ")
           : "Address details unavailable";
-        return <div className="admin-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrderId(null); }}><section className="admin-order-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-order-title"><header className="admin-editor-header"><div><p className="eyebrow">ORDER DETAIL / {order.order_number}</p><h2 id="admin-order-title">{order.customer_email}</h2></div><button type="button" className="dialog-close" aria-label="Close order details" onClick={() => setSelectedOrderId(null)}>×</button></header><p><strong>Contact</strong><br /><a href={`tel:${order.customer_phone}`}>{order.customer_phone}</a></p><p><strong>Delivery address</strong><br />{address}</p><div className="admin-order-detail-lines">{orderItems.filter((item) => item.order_id === order.id).map((item) => <div className="summary-row" key={item.id}><span>{item.product_name} / {item.variant_label} × {item.quantity}</span><strong>{formatPrice(item.line_total_npr)}</strong></div>)}</div><div className="summary-row"><span>Subtotal</span><strong>{formatPrice(order.subtotal_npr)}</strong></div><div className="summary-row"><span>Delivery</span><strong>{formatPrice(order.delivery_fee_npr)}</strong></div><div className="summary-row"><span>Order status</span><strong>{order.order_status}</strong></div><div className="summary-row"><span>Payment status</span><strong>{order.payment_status}</strong></div><p className="form-note">Customer data is private. Refunds and payment status updates require a verified provider integration; this dashboard cannot manually mark an order paid.</p></section></div>;
+        return <div className="admin-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedOrderId(null); }}><section className="admin-order-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-order-title"><header className="admin-editor-header"><div><p className="eyebrow">ORDER DETAIL / {order.order_number}</p><h2 id="admin-order-title">{order.customer_email}</h2></div><button type="button" className="dialog-close" aria-label="Close order details" onClick={() => setSelectedOrderId(null)}>×</button></header><p><strong>Contact</strong><br /><a href={`tel:${order.customer_phone}`}>{order.customer_phone}</a></p><p><strong>Delivery address</strong><br />{address}</p><div className="admin-order-detail-lines">{orderItems.filter((item) => item.order_id === order.id).map((item) => <div className="summary-row" key={item.id}><span>{item.product_name} / {item.variant_label} × {item.quantity}</span><strong>{formatPrice(item.line_total_npr)}</strong></div>)}</div><div className="summary-row"><span>Subtotal</span><strong>{formatPrice(order.subtotal_npr)}</strong></div><div className="summary-row"><span>Delivery</span><strong>{formatPrice(order.delivery_fee_npr)}</strong></div><div className="summary-row"><span>Order status</span><strong>{order.order_status}</strong></div><div className="summary-row"><span>Payment gateway</span><strong>{order.payment_method ?? "Not selected"}</strong></div><div className="summary-row"><span>Payment status</span><strong>{order.payment_status}</strong></div>{paymentTransactions.filter((transaction) => transaction.order_id === order.id).map((transaction) => <div key={transaction.id} className="admin-payment-transaction"><div className="summary-row"><span>Verified transaction</span><strong>{transaction.provider_reference ?? "Reference unavailable"}</strong></div><div className="summary-row"><span>Provider / status</span><strong>{transaction.provider} / {transaction.status}</strong></div><div className="summary-row"><span>Verified amount</span><strong>{formatPrice(transaction.amount_npr)}</strong></div><div className="summary-row"><span>Recorded</span><strong>{new Date(transaction.created_at).toLocaleString()}</strong></div></div>)}<p className="form-note">Customer data is private. Payment is recorded only after authoritative provider verification; this dashboard cannot manually mark an order paid.</p></section></div>;
       })()}
     </main>
   );

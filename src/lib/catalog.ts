@@ -34,7 +34,10 @@ type VariantRow = {
 export type CatalogState = "demo" | "loading" | "ready" | "error";
 
 export async function loadPublishedProducts(): Promise<Product[]> {
-  if (!supabase) return demoProducts;
+  if (!supabase) {
+    if (import.meta.env.DEV) return demoProducts;
+    throw new Error("The live catalog is not configured for this deployment.");
+  }
 
   const { data: productRows, error: productError } = await supabase
     .from("products")

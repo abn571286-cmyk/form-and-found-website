@@ -1,0 +1,11 @@
+[functions.contact-message]
+verify_jwt = false
+
+[functions.payment-options]
+verify_jwt = false
+
+[functions.payment-initiate]
+verify_jwt = true
+
+[functions.payment-verify]
+verify_jwt = true

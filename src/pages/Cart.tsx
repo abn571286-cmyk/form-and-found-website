@@ -47,7 +47,7 @@ export default function Cart() {
                           : variantStock !== undefined && item.quantity > variantStock
                             ? `Only ${variantStock} available for this variant`
                             : `${product.status} — not purchasable`
-                        : `${product.status} (demo data)`}
+                        : product.status}
                     </p>
                     <div className="quantity-control">
                       <label htmlFor={`quantity-${item.id}-${item.size}-${item.color}`}>Quantity</label>
@@ -63,10 +63,9 @@ export default function Cart() {
           <aside className="order-summary">
             <p className="eyebrow">ORDER SUMMARY</p>
             <div className="summary-row"><span>Subtotal ({itemCount} items)</span><strong>{formatPrice(subtotal)}</strong></div>
-            <div className="summary-row"><span>Delivery</span><span>Not configured</span></div>
-            <p className="form-note">Delivery fee and final payable total have not been configured. No order or payment is processed on this demo.</p>
+            <p className="form-note">Delivery is calculated from the current store settings during checkout.</p>
             {hasUnavailable && <p className="error-note" role="alert">Remove unavailable items before continuing to checkout.</p>}
-            <Link className={`button button-lime button-full${hasUnavailable ? " button-disabled" : ""}`} aria-disabled={hasUnavailable} onClick={(event) => { if (hasUnavailable) event.preventDefault(); }} to="/checkout">REVIEW DEMO CHECKOUT ↗</Link>
+            <Link className={`button button-lime button-full${hasUnavailable ? " button-disabled" : ""}`} aria-disabled={hasUnavailable} onClick={(event) => { if (hasUnavailable) event.preventDefault(); }} to="/checkout">CONTINUE TO CHECKOUT ↗</Link>
             <Link className="text-link" to="/shop">CONTINUE SHOPPING</Link>
           </aside>
         </div>

@@ -117,7 +117,7 @@ export default function ProductDetail() {
           {message.startsWith("Added") && <button type="button" className="text-link view-bag-link" onClick={() => navigate("/cart")}>VIEW YOUR BAG ↗</button>}
           {product.materials && <details className="product-accordion"><summary>MATERIALS</summary><p>{product.materials}</p></details>}
           {product.care && <details className="product-accordion"><summary>CARE</summary><p>{product.care}</p></details>}
-          <p className="form-note">Availability is configured demo data. Shipping and returns are not configured; checkout does not place a real order.</p>
+          {state === "demo" && <p className="form-note">Development catalogue preview only. Product availability is not live inventory.</p>}
         </section>
       </div>
       {sizeGuideOpen && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSizeGuideOpen(false); }}><section className="size-dialog" role="dialog" aria-modal="true" aria-labelledby="size-guide-title"><button type="button" className="dialog-close" onClick={() => setSizeGuideOpen(false)} aria-label="Close size guide">×</button><p className="eyebrow">FORM & FOUND / SIZING</p><h2 id="size-guide-title">SIZE GUIDE</h2><p>Use the size options shown for this product. Detailed garment measurements have not been configured yet.</p><p>Available: {product.sizes.join(" · ") || "No sizes configured"}</p></section></div>}

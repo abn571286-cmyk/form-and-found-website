@@ -1,0 +1,74 @@
+.payment-result-page {
+  min-height: 60vh;
+}
+
+.payment-result-card {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 680px);
+  margin: 0 auto 90px;
+  padding: clamp(22px, 5vw, 42px);
+  border: 1px solid #dedbd3;
+  background: #fff;
+}
+
+.payment-result-card .button {
+  justify-self: start;
+}
+
+.payment-result-loading {
+  margin: 0;
+  padding: 16px 0;
+}
+
+.payment-result-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payment-result-card dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.payment-result-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e8e5de;
+}
+
+.payment-result-card dt {
+  color: #716e65;
+}
+
+.payment-result-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.payment-result-card .checkout-support {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  padding-top: 15px;
+  border-top: 1px solid #e8e5de;
+}
+
+@media (max-width: 520px) {
+  .payment-result-card dl > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .payment-result-card dd {
+    text-align: left;
+  }
+}

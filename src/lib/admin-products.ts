@@ -6,6 +6,7 @@ export type AdminProduct = Database["public"]["Tables"]["products"]["Row"];
 export type AdminVariant = Database["public"]["Tables"]["product_variants"]["Row"];
 export type AdminOrder = Database["public"]["Tables"]["orders"]["Row"];
 export type AdminOrderItem = Database["public"]["Tables"]["order_items"]["Row"];
+export type AdminPaymentTransaction = Database["public"]["Tables"]["payment_transactions"]["Row"];
 
 export type AdminProductInput = {
   id?: string;
@@ -56,15 +57,18 @@ export async function loadAdminProducts() {
 
 export async function loadAdminOrders() {
   const client = requireSupabase();
-  const [orderResult, itemResult] = await Promise.all([
+  const [orderResult, itemResult, paymentResult] = await Promise.all([
     client.from("orders").select("*").order("created_at", { ascending: false }),
     client.from("order_items").select("*").order("created_at"),
+    client.from("payment_transactions").select("*").order("created_at", { ascending: false }),
   ]);
   if (orderResult.error) throw orderResult.error;
   if (itemResult.error) throw itemResult.error;
+  if (paymentResult.error) throw paymentResult.error;
   return {
     orders: orderResult.data as AdminOrder[],
     items: itemResult.data as AdminOrderItem[],
+    payments: paymentResult.data as AdminPaymentTransaction[],
   };
 }
 

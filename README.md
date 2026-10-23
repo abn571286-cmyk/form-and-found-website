@@ -1,121 +1,121 @@
 # FORM & FOUND
 
-Premium streetwear storefront for FORM & FOUND. The current app keeps a local demo catalogue when no backend is configured. With Supabase configured, storefront products come from the published database catalogue, and `/admin` provides Supabase Auth-protected product, inventory, and order-management screens.
+Premium streetwear storefront for FORM & FOUND. The application uses React, TypeScript, Vite, React Router, and Supabase. Its customer account, saved addresses, order history, authenticated checkout, contact submissions, and owner dashboard require the configured Supabase project.
 
-Contact: [9840180193](tel:+9779840180193) · [abhiyan080@gmail.com](mailto:abhiyan080@gmail.com)
+Customer support: [abhiyan080@gmail.com](mailto:abhiyan080@gmail.com) · [pranax909@gmail.com](mailto:pranax909@gmail.com) · [9840180193](tel:+9779840180193) · [9745233604](tel:+9779745233604)
 
-## 1. Run locally
+## Run and validate locally
 
 Requirements: Node.js 20 or later and npm.
 
 ```powershell
 npm install
 npm run dev
-```
-
-Open the local URL printed by Vite. Check the app with:
-
-```powershell
 npm run build
 npm run lint
 ```
 
-Without Supabase settings, the shop runs from the sample catalogue in `src/data/products.ts`, and cart and wishlist are demo data stored in this browser. Checkout is a form preview only. It does not submit an order or collect payment.
-If a product photo URL is unavailable, product cards, product details, and the bag use `public/product-placeholder.svg`. Replace a demo image by updating that product's `image` URL in `src/data/products.ts`; with Supabase configured, upload the image from `/admin` instead. The hero uses its own editorial photo URL.
+With no Supabase configuration, a small catalogue in `src/data/products.ts` is available only in Vite development mode and is identified as a non-live preview. Production builds do not fall back to this catalogue. Cart and wishlist selections are stored in the current browser.
 
-The `/contact` page validates the demo contact form but does not send or store messages. Use the configured contact email shown on that page. `/new-arrivals` is a separate storefront page showing only products explicitly flagged `isNewArrival`; `/shop` continues to show the complete published catalogue. Product records loaded from Supabase retain their real `created_at` timestamps for New Arrivals ordering. Demo products without a creation date are ordered by the existing source-catalog order; no dates are inferred or generated. In the owner dashboard, set **Mark as new arrival** on the product editor to persist the flag to Supabase. New products default to not-new.
+## Supabase configuration
 
-## 2. Connect a Supabase project
-
-1. Create a Supabase project and keep its database password and service-role key private.
-2. Copy `.env.example` to `.env.local`.
-3. In Supabase Project Settings → API, copy the Project URL and public anon/publishable key into `.env.local`:
+1. Create a Supabase project. Do not put the service-role key, payment credentials, or email-provider secrets in client-side `VITE_*` variables.
+2. Copy `.env.example` to `.env.local` and set the project URL and public anon/publishable key:
 
    ```dotenv
    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
    VITE_SUPABASE_ANON_KEY=your-public-anon-or-publishable-key
    ```
 
-4. Restart Vite after changing environment variables.
-5. In the Supabase SQL Editor, run the migration file `supabase/migrations/202610220001_initial_store.sql`.
-6. Create an administrator in Supabase Authentication → Users → Add user. Disable public signups in Auth settings.
-7. In the Supabase SQL Editor, grant the admin role to that Auth user's UUID:
+   `VITE_MANUAL_PAYMENT_NUMBER` optionally changes the owner-provided contact number shown in checkout. It is public contact information only, not a merchant credential or proof that this number can receive eSewa, Khalti, or other website payments. Manual payment is not enabled by this setting.
+
+3. Apply `supabase/migrations/202610220001_initial_store.sql`, `supabase/migrations/202610230001_customer_accounts_support.sql`, `supabase/migrations/202610230002_payment_attempts.sql`, then `supabase/migrations/202610230003_kathmandu_delivery_pricing.sql`, in that order. Use a disposable project first. These local SQL files do not prove that the migrations have been applied to any live database.
+4. Configure Supabase Auth Site URL and redirect allow-list for the deployed site and local development. Enable customer signup if new customers should register, and configure email verification according to the store's policy. Admin access remains separately controlled by `admin_users` and `is_store_admin()`.
+5. Create the owner Auth user and grant only that trusted user's UUID the admin role:
 
    ```sql
    insert into public.admin_users (user_id)
-   values ('PASTE-THE-AUTH-USER-UUID-HERE');
+   values ('PASTE-THE-TRUSTED-AUTH-USER-UUID-HERE');
    ```
 
-   Only grant this role to a trusted owner. Removing the row revokes admin access.
-8. In the SQL Editor, set the verified delivery charge before enabling any order flow:
+6. The Kathmandu delivery migration seeds the fixed `delivery_fee_npr` value of NPR 120, `delivery_coverage_districts` (`Kathmandu`, `Lalitpur`, `Bhaktapur`), and an initially empty `delivery_coverage_postal_codes` allow-list for each district. The order RPC rejects orders unless the configured fee is exactly NPR 120 and the authenticated address's province/district matches supported coverage. An entered postal code must match the server-managed allow-list; until verified codes are configured, leave this optional field blank. To expand service, update the coverage settings and matching UI/deployment configuration together; apply a reviewed migration rather than editing trusted order totals from the browser.
 
-   ```sql
-   insert into public.store_settings (key, value)
-   values ('delivery_fee_npr', '0'::jsonb)
-   on conflict (key) do update
-   set value = excluded.value, updated_at = now();
-   ```
+7. Add products and verified variant stock through `/admin`. Only published database products are shown in the production storefront.
 
-   Replace zero with the actual configured charge. The current demo checkout does not use this setting or submit orders.
-9. Start/restart the app and open `/admin`. Sign in with the authorized Auth user. Add a draft product, upload the primary image, enter variant rows and verified quantities, then publish. Only published products are visible to the public catalogue.
+The initial migration defines RLS and database functions for products, profiles, addresses, orders, payments, and admin operations. The customer-support migration adds private contact messages, order-notification attempt records, an owner-scoped default-address function, and server-side validation for the full delivery address. The payment migration adds owner-scoped, read-only payment attempt records and a server-only atomic verified-payment workflow. The Kathmandu delivery migration seeds the NPR 120 charge and district coverage, exposes coverage for checkout, and updates the authenticated order RPC to enforce Bagmati province, configured valley districts, the fixed fee, current product prices, stock, and totals. Orders begin with payment pending. The app never lets customers or admins mark payment as paid through ordinary frontend writes.
 
-`.env.local` is ignored by Git. Never put a Supabase service-role key, payment secret, or webhook signing secret in `VITE_*` variables or any browser bundle. The anon/publishable key is intentionally public; RLS is the access boundary.
+For Kathmandu Valley delivery, checkout requires Bagmati province and a supported district from `delivery_coverage_districts`. At launch the districts are Kathmandu, Lalitpur, and Bhaktapur. Postal-code coverage is an explicit allow-list in `delivery_coverage_postal_codes`. The migration leaves those allow-lists empty because no validated postal-code data was available; an entered code is rejected until the store configures verified coverage. The optional field may be left blank.
 
-## 3. Owner product workflow
+## Contact submissions and email
 
-The dashboard can add, edit, duplicate, publish, unpublish, and archive products; upload JPG, PNG, WebP, or AVIF product images (8 MB maximum); preview images; manage gallery URLs; and enter size, colour, variant SKU, and stock. It validates generated URL slugs, duplicate slugs, positive integer NPR pricing, optional compare-at pricing, and variant quantities. Database constraints and `admin_save_product` repeat important checks server-side. Published items immediately load into the shop, search, product pages, wishlist, and bag from the same public catalogue source.
+The `contact-message` Supabase Edge Function validates and stores messages in `contact_messages`; that table is readable only by authorized administrators. Without email-provider secrets, a successful response means the message was saved, not emailed. The page explains this distinction.
 
-Variant inventory uses one row per real size/colour, for example:
+The `send-order-confirmation` Edge Function authenticates the customer, verifies order ownership, loads server-side order items and totals, and sends order or verified-payment confirmations through Resend. Its unique notification records prevent duplicate confirmations on refresh and record delivery attempts. Payment notifications are only accepted after the order has a matching verified transaction. A notification failure does not undo a successfully created order or verified payment.
 
-```text
-S | Black | 4 | FNF-TEE-S-BLK
-M | Black | 0 | FNF-TEE-M-BLK
-S | White | 2 | FNF-TEE-S-WHT
+Deploy the functions from the repository root after linking the correct Supabase project:
+
+```powershell
+supabase link --project-ref "YOUR_PROJECT_REF"
+supabase functions deploy contact-message
+supabase functions deploy send-order-confirmation
+supabase functions deploy payment-options
+supabase functions deploy payment-initiate
+supabase functions deploy payment-verify
 ```
 
-Enter real stock only. A product marked In stock or Low stock must have at least one recorded unit; Sold out and Coming soon require zero. Updating a product preserves variant IDs for unchanged size/colour combinations so order references remain stable. Removed variants with historical order references are protected by database constraints.
+Verify a sending domain with Resend, then configure server-side function secrets. `CONTACT_FROM_EMAIL` and `ORDER_FROM_EMAIL` must be verified sender addresses. `CONTACT_TO_EMAIL` is optional and defaults to the primary support email above.
 
-The original demo products stay in `src/data/products.ts` and are used only when Supabase environment values are absent. Do not add production products there after connecting Supabase. The shared storefront context switches all shop surfaces to the published database catalogue.
+```powershell
+supabase secrets set "RESEND_API_KEY=PASTE_SECRET" "CONTACT_FROM_EMAIL=PASTE_VERIFIED_SENDER" "ORDER_FROM_EMAIL=PASTE_VERIFIED_SENDER"
+supabase secrets set "CONTACT_TO_EMAIL=PASTE_SUPPORT_INBOX"
+```
 
-## 4. Security and database foundation
+Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to deployed Edge Functions. If using a custom environment, configure those only as server-side function secrets. Never expose the service-role key or Resend key in browser code.
 
-The migration creates products, variants/inventory, administrator roles, private customer profiles and addresses, orders, immutable order-item price snapshots, payment references, store settings, and administrator audit events.
+The public contact endpoint has server-side validation and a honeypot field. Before broad public launch, configure suitable platform-level rate limiting or a challenge service and test email deliverability. Message storage and message email notification are reported as separate outcomes.
 
-- Public reads are limited to published products and their variants.
-- Admin identity is checked by the database through `admin_users` and `is_store_admin()`. Hiding the dashboard route or link is not the security boundary.
-- Product changes use a database function with server-side validation and audit events. Image writes require an authorized admin; public image reads are for storefront product imagery.
-- The order function accepts only authenticated users, locks and validates variants, reads current server prices and configured delivery fees, decrements stock atomically, uses an idempotency key, and creates a pending-payment order. It does not trust browser totals or prices.
-- Admin order status changes use a database function. Cancellation is restricted and restores reserved stock only for eligible unpaid orders; paid, shipped, and delivered orders cannot be cancelled through that path.
-- Payment status is separate from order status. Only a trusted server callback may call `record_verified_payment`; that function requires the service-role JWT role and checks the provider-verified amount against the server order total.
-- The dashboard cannot manually mark payment as paid, and no payment provider is configured.
+## Checkout, orders, and payment
 
-The migration is supplied but has **not** been applied to a live project in this workspace. SQL policies and functions have not been exercised against your Supabase instance. Apply it to a disposable test project first, review it, and test RLS using anon, regular authenticated, and admin users before production.
+Checkout requires a signed-in customer, uses an idempotency key that survives retries in the current browser session, and sends variant IDs and quantities to `create_authenticated_order`. The database rechecks publication, stock, price, delivery configuration, and address fields before changing stock or creating an order. The cart is cleared only after the database confirms the order and its server-calculated details. When a gateway is configured, the customer reviews the database-calculated total before starting provider checkout.
 
-## 5. Order, guest checkout, and payment status
+Order history and payment attempts are selected with the authenticated customer's user ID and protected by RLS. Pending/processing/shipped records appear separately from delivered/cancelled history. The `/admin` dashboard continues to use `is_store_admin()`, `admin_save_product`, and `admin_set_order_status`; it displays the gateway and recorded verified payment reference/amount without allowing manual payment-status changes.
 
-The customer-facing `/checkout` remains clearly labelled demo mode. `src/lib/orders.ts` contains a typed authenticated order call that sends variant IDs and quantities only; the SQL calculates prices, delivery, and totals. There is no customer signup/login UX, so this order call is not currently reachable from checkout. Guest orders require a trusted Edge Function or backend endpoint with request validation, abuse/rate limiting, spam protection, and server-only database credentials; do not expose an anonymous stock-reserving RPC.
+The payment functions implement eSewa ePay V2 and Khalti KPG-2 server-side initiation and provider status lookup. eSewa form signatures and returned callback signatures are checked with HMAC-SHA256 using the configured server secret; a valid signed callback is still followed by an authoritative provider status lookup. Khalti amounts are sent in paisa and confirmed through its lookup API. Browser return parameters are never treated alone as payment evidence. The backend checks provider, stored attempt, order association, reference, status, and exact amount, then atomically records verified payment through `record_verified_payment_attempt` and `record_verified_payment`. No order is automatically marked delivered.
 
-No eSewa, Khalti, Fonepay, bank transfer, or cash-on-delivery integration is active. For a real payment provider, implement its checkout creation and signed webhook verification in a server/Edge Function, validate amount and currency against the order, make callbacks idempotent, and then call the verified-payment database function. Never treat a browser redirect as payment proof or collect card details directly.
+Official specifications: [eSewa ePay](https://developer.esewa.com.np/pages/Epay) and [Khalti KPG-2](https://docs.khalti.com/khalti-epayment/). The eSewa documentation site serves its current ePay page as `Epay`; the prompt's `/pages/Epay-V2` path returned 404 during implementation.
 
-## 6. Before production launch
+Payment credentials are never Vite variables. Configure each provider independently in server-side Supabase function secrets. Example names (set actual credentials only in a trusted server-side secret manager):
 
-- Apply and test the SQL migration and all RLS policies in a separate Supabase project.
-- Create the owner Auth account; disable public admin signups; add only trusted user UUIDs to `admin_users`.
-- Configure domain, Supabase Auth URL allow-list, HTTPS hosting, environment values, and backups.
-- Test product/image CRUD, public product visibility, admin-only writes, unauthorized access, inventory updates, order row security, and cancellation/restoration with multiple users.
-- Build customer authentication or a protected guest-order Edge Function and connect a reviewed order flow. Keep the current demo checkout disabled for real orders until this is complete.
-- Configure delivery fees, customer support, returns, privacy/terms, taxes, and order email handling.
-- Integrate a chosen payment provider server-side; test signed callbacks, duplicate notifications, amount mismatches, refunds, and failure states.
-- Add monitoring, database backups/retention, rate limits, fraud/abuse controls, and operational support procedures.
-- Use real product photography you own or are licensed to use; verify image credits and optimize/resize images before upload.
-- Run `npm run build` and `npm run lint` against the release commit.
+```text
+PUBLIC_SITE_URL=https://your-store-domain.example
+ESEWA_MODE=sandbox
+ESEWA_PRODUCT_CODE=YOUR_SANDBOX_PRODUCT_CODE
+ESEWA_SECRET_KEY=YOUR_SANDBOX_SECRET
+KHALTI_MODE=sandbox
+KHALTI_SECRET_KEY=YOUR_SANDBOX_SECRET_KEY
+```
 
-## Troubleshooting
+The configured sandbox key must come from the provider's authorized merchant sandbox. Do not copy sample secrets from provider documentation into this repository. To configure production, use independently obtained production credentials and set `ESEWA_MODE=production` or `KHALTI_MODE=production`. Live checkout remains disabled until the corresponding provider has both `*_LIVE_ENABLED=true` and `*_SETTLEMENT_VERIFIED=true` set in server-side secrets. Set those flags only after the official merchant account and receiving/settlement configuration have been independently confirmed through the provider's authorized dashboard or support channel. Customer-support phone numbers are not payment destinations. Keep sandbox and production secret sets separate.
 
-- **Admin shows backend setup:** check `.env.local` values and restart Vite.
-- **Sign-in works but dashboard denies access:** confirm the signed-in Auth user's UUID exists in `public.admin_users`.
-- **Products fail to load:** inspect browser network errors and Supabase API logs; verify the migration ran and public product rows are published. The storefront offers a retry and intentionally does not hide configured-backend failures behind demo data.
-- **Image upload is denied:** verify admin role, storage bucket/policies from the migration, file type, and the 8 MB limit.
-- **Publish/save fails:** read the dashboard error for duplicate slug, invalid sale price, variant stock, RLS, or migration mismatch.
-- **Types drift after changing schema:** regenerate `src/lib/database.types.ts` from your Supabase project using the Supabase CLI and review the generated diff before use. Current types are hand-maintained for the included migration.
-- **Orders remain unavailable:** this is expected until customer authentication or a protected guest-order endpoint and verified delivery configuration are implemented. No payment integrations are active.
+Example server-side deployment:
+
+```powershell
+supabase secrets set "PUBLIC_SITE_URL=PASTE_HTTPS_STORE_ORIGIN"
+supabase secrets set "ESEWA_MODE=sandbox" "ESEWA_PRODUCT_CODE=PASTE_AUTHORIZED_SANDBOX_CODE" "ESEWA_SECRET_KEY=PASTE_AUTHORIZED_SANDBOX_SECRET"
+supabase secrets set "KHALTI_MODE=sandbox" "KHALTI_SECRET_KEY=PASTE_AUTHORIZED_SANDBOX_KEY"
+```
+
+Do not set either production enablement flag before merchant/settlement verification. No credentials are included in this project, so the functions report payment gateways unavailable until configured. Production gateway availability, merchant settlement, sandbox payments, and email delivery have not been verified from this workspace. Payment status retries are initiated only by the authenticated order owner; server-held provider references are used for lookup.
+
+## Production checks and limitations
+
+- Review all four migrations and apply them to a staging project before production; the live database was not accessible from this workspace.
+- Test RLS using separate anon, customer, and admin sessions, including attempts to read another customer's profile, addresses, orders, or order items.
+- Test signup, verification redirects, sign-in, session persistence, email changes, address CRUD/default selection, order creation/retry, contact submission, and Admin product/order workflows against staging.
+- Confirm the NPR 120 delivery setting and supported district list, publish products with real imagery and accurate stock, configure customer support policies, and verify the Supabase Auth redirect allow-list.
+- Configure Resend sender-domain verification and test contact/order emails. A client response or database row alone is not proof that an email was delivered.
+- Test eSewa and Khalti with authorized sandbox credentials, including complete, pending, cancelled, expired, mismatched-amount, repeated-callback, and lookup-unavailable cases. Verify that repeated checks cannot duplicate or downgrade a recorded payment.
+- Confirm production merchant credentials and settlement destinations independently with each provider before setting its live enablement and settlement-verification flags.
+- The project has no automated end-to-end test script. `npm run build` and `npm run lint` are the available repository checks.
+
+If generated database types drift after applying migrations, regenerate them from the target project with the Supabase CLI and review the resulting diff before using it.

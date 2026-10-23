@@ -85,6 +85,7 @@ export type Database = {
           id: string;
           order_number: string;
           idempotency_key: string;
+          customer_user_id: string | null;
           customer_email: string;
           customer_phone: string;
           shipping_address: Json;
@@ -101,6 +102,7 @@ export type Database = {
           id?: string;
           order_number?: string;
           idempotency_key: string;
+          customer_user_id?: string | null;
           customer_email: string;
           customer_phone: string;
           shipping_address: Json;
@@ -156,6 +158,37 @@ export type Database = {
           provider_payload?: Json;
         }
       >;
+      payment_attempts: Table<
+        {
+          id: string;
+          order_id: string;
+          customer_user_id: string;
+          provider: "esewa" | "khalti";
+          provider_reference: string | null;
+          provider_transaction_id: string | null;
+          payment_url: string | null;
+          amount_npr: number;
+          verified_amount_npr: number | null;
+          status: "initiating" | "pending" | "verified" | "failed" | "cancelled" | "expired" | "verification_unavailable" | "review";
+          verified_at: string | null;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          order_id: string;
+          customer_user_id: string;
+          provider: "esewa" | "khalti";
+          amount_npr: number;
+          provider_reference?: string | null;
+          provider_transaction_id?: string | null;
+          payment_url?: string | null;
+          verified_amount_npr?: number | null;
+          status?: "initiating" | "pending" | "verified" | "failed" | "cancelled" | "expired" | "verification_unavailable" | "review";
+          verified_at?: string | null;
+          last_error?: string | null;
+        }
+      >;
       customer_profiles: Table<
         { user_id: string; full_name: string | null; phone: string | null; created_at: string; updated_at: string },
         { user_id: string; full_name?: string | null; phone?: string | null }
@@ -167,6 +200,49 @@ export type Database = {
       admin_audit_events: Table<
         { id: string; actor_user_id: string | null; action: string; entity_type: string; entity_id: string | null; details: Json; created_at: string },
         { actor_user_id?: string | null; action: string; entity_type: string; entity_id?: string | null; details?: Json }
+      >;
+      contact_messages: Table<
+        {
+          id: string;
+          submission_id: string;
+          name: string;
+          email: string;
+          subject: string;
+          message: string;
+          status: "new" | "read" | "closed";
+          notification_status: "not_configured" | "sent" | "failed";
+          created_at: string;
+        },
+        {
+          submission_id: string;
+          name: string;
+          email: string;
+          subject: string;
+          message: string;
+          status?: "new" | "read" | "closed";
+          notification_status?: "not_configured" | "sent" | "failed";
+        }
+      >;
+      order_notification_attempts: Table<
+        {
+          id: string;
+          order_id: string;
+          notification_type: "order_confirmation" | "payment_confirmation";
+          status: "sending" | "sent" | "failed";
+          attempt_count: number;
+          last_error: string | null;
+          sent_at: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          order_id: string;
+          notification_type?: "order_confirmation" | "payment_confirmation";
+          status?: "sending" | "sent" | "failed";
+          attempt_count?: number;
+          last_error?: string | null;
+          sent_at?: string | null;
+        }
       >;
     };
     Views: {
@@ -182,9 +258,36 @@ export type Database = {
         Args: { p_idempotency_key: string; p_customer_email: string; p_customer_phone: string; p_shipping_address: Json; p_items: Json };
         Returns: string;
       };
+      set_default_delivery_address: {
+        Args: { p_address_id: string };
+        Returns: undefined;
+      };
       admin_set_order_status: { Args: { p_order_id: string; p_status: string }; Returns: undefined };
       record_verified_payment: {
         Args: { p_order_id: string; p_provider: string; p_provider_reference: string; p_verified_amount_npr: number; p_provider_payload?: Json };
+        Returns: undefined;
+      };
+      create_payment_attempt: {
+        Args: { p_order_id: string; p_provider: string };
+        Returns: Array<{
+          attempt_id: string;
+          order_number: string;
+          amount_npr: number;
+          customer_email: string;
+          customer_phone: string;
+          attempt_status: string;
+          provider_reference: string | null;
+          payment_url: string | null;
+          new_attempt: boolean;
+        }>;
+      };
+      record_verified_payment_attempt: {
+        Args: {
+          p_attempt_id: string;
+          p_provider_reference: string;
+          p_provider_transaction_id: string;
+          p_verified_amount_npr: number;
+        };
         Returns: undefined;
       };
     };
