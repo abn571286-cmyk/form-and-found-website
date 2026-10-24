@@ -1,5 +1,5 @@
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import "./App.css";
 import {
   Link,
@@ -15,6 +15,7 @@ import { useProductCatalog } from "./ProductCatalogContext";
 import { useCart } from "./CartContext";
 import { useWishlist } from "./WishlistContext";
 import { searchProducts } from "./lib/search-products";
+import { scrollToTop } from "./lib/scroll-to-top";
 import ProductCard from "./components/ProductCard";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
@@ -633,25 +634,46 @@ function PageFrame({ children }: { children: ReactNode }) {
   );
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useLayoutEffect(() => {
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollToTop();
+  }, [pathname]);
+
+  return null;
+}
+
 export default function App() {
   return (
-    <Routes>
-      {/* Homepage remains the first page visitors see */}
-      <Route path="/" element={<PageFrame><Home /></PageFrame>} />
-      <Route path="/shop" element={<PageFrame><Products /></PageFrame>} />
-      <Route path="/new-arrivals" element={<PageFrame><NewArrivals /></PageFrame>} />
-      <Route path="/product/:id" element={<PageFrame><ProductDetail /></PageFrame>} />
-      <Route path="/cart" element={<PageFrame><Cart /></PageFrame>} />
-      <Route path="/checkout" element={<PageFrame><Checkout /></PageFrame>} />
-      <Route path="/payment/result" element={<PageFrame><PaymentResult /></PageFrame>} />
-      <Route path="/payment/result/:attempt_id" element={<PageFrame><PaymentResult /></PageFrame>} />
-      <Route path="/wishlist" element={<PageFrame><Wishlist /></PageFrame>} />
-      <Route path="/search" element={<PageFrame><Search /></PageFrame>} />
-      <Route path="/contact" element={<PageFrame><Contact /></PageFrame>} />
-      <Route path="/account" element={<PageFrame><Account /></PageFrame>} />
-      {/* Admin stays separate from the storefront */}
-      <Route path="/admin" element={<Admin />} />
-      <Route path="*" element={<PageFrame><NotFound /></PageFrame>} />
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        {/* Homepage remains the first page visitors see */}
+        <Route path="/" element={<PageFrame><Home /></PageFrame>} />
+        <Route path="/shop" element={<PageFrame><Products /></PageFrame>} />
+        <Route path="/new-arrivals" element={<PageFrame><NewArrivals /></PageFrame>} />
+        <Route path="/product/:id" element={<PageFrame><ProductDetail /></PageFrame>} />
+        <Route path="/cart" element={<PageFrame><Cart /></PageFrame>} />
+        <Route path="/checkout" element={<PageFrame><Checkout /></PageFrame>} />
+        <Route path="/payment/result" element={<PageFrame><PaymentResult /></PageFrame>} />
+        <Route path="/payment/result/:attempt_id" element={<PageFrame><PaymentResult /></PageFrame>} />
+        <Route path="/wishlist" element={<PageFrame><Wishlist /></PageFrame>} />
+        <Route path="/search" element={<PageFrame><Search /></PageFrame>} />
+        <Route path="/contact" element={<PageFrame><Contact /></PageFrame>} />
+        <Route path="/account" element={<PageFrame><Account /></PageFrame>} />
+        {/* Admin stays separate from the storefront */}
+        <Route path="/admin" element={<Admin />} />
+        <Route path="*" element={<PageFrame><NotFound /></PageFrame>} />
+      </Routes>
+    </>
   );
 }

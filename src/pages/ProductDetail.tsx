@@ -100,7 +100,6 @@ export default function ProductDetail() {
           <p className="detail-price">{formatPrice(product.price)}</p>
           {product.compareAtPrice !== undefined && <p className="compare-at-price">Compare at {formatPrice(product.compareAtPrice)}</p>}
           <p className={`detail-status ${unavailable ? "unavailable-text" : "available-text"}`}>{product.status}</p>
-          <p className="detail-description">{product.description}</p>
           <fieldset className="selection-group"><legend>SIZE <button type="button" className="inline-button size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>SIZE GUIDE</button></legend>
             <div className="detail-options">{product.sizes.map((item) => <button key={item} type="button" className={size === item ? "selected" : ""} onClick={() => { setSize(item); setMessage(""); }} aria-pressed={size === item}>{item}</button>)}</div>
           </fieldset>
@@ -120,6 +119,7 @@ export default function ProductDetail() {
           {state === "demo" && <p className="form-note">Development catalogue preview only. Product availability is not live inventory.</p>}
         </section>
       </div>
+      <p className="detail-description">{product.description}</p>
       {sizeGuideOpen && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSizeGuideOpen(false); }}><section className="size-dialog" role="dialog" aria-modal="true" aria-labelledby="size-guide-title"><button type="button" className="dialog-close" onClick={() => setSizeGuideOpen(false)} aria-label="Close size guide">×</button><p className="eyebrow">FORM & FOUND / SIZING</p><h2 id="size-guide-title">SIZE GUIDE</h2><p>Use the size options shown for this product. Detailed garment measurements have not been configured yet.</p><p>Available: {product.sizes.join(" · ") || "No sizes configured"}</p></section></div>}
       {!!related.length && <section className="section-wrap related-products"><div className="section-heading"><div><p className="eyebrow">KEEP EXPLORING</p><h2>RELATED PIECES<span>.</span></h2></div></div><div className="product-grid">{related.map((item) => <ProductCard key={item.id} product={item} />)}</div></section>}
     </main>
