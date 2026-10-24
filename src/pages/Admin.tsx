@@ -31,8 +31,7 @@ type EditorValues = {
   collection: string;
   price: string;
   compareAtPrice: string;
-  image: string;
-  gallery: string;
+  images: string[];
   sizes: string;
   colors: string;
   stockRows: string;
@@ -53,8 +52,7 @@ const blankEditor: EditorValues = {
   collection: "",
   price: "",
   compareAtPrice: "",
-  image: "",
-  gallery: "",
+  images: [],
   sizes: "",
   colors: "",
   stockRows: "",
@@ -86,8 +84,10 @@ function editorFromProduct(product: AdminProduct, variants: AdminVariant[]): Edi
     collection: product.collection ?? "",
     price: String(product.price_npr),
     compareAtPrice: product.compare_at_price_npr === null ? "" : String(product.compare_at_price_npr),
-    image: product.image_url,
-    gallery: Array.isArray(product.gallery) ? product.gallery.filter((image): image is string => typeof image === "string").join("\n") : "",
+    images: [
+      product.image_url,
+      ...(Array.isArray(product.gallery) ? product.gallery.filter((image): image is string => typeof image === "string") : []),
+    ].filter((image, index, allImages) => Boolean(image) && allImages.indexOf(image) === index),
     sizes: [...new Set(productVariants.map(({ size }) => size))].join(", "),
     colors: [...new Set(productVariants.map(({ color }) => color))].join(", "),
     stockRows: productVariants.map((variant) => `${variant.size} | ${variant.color} | ${variant.stock} | ${variant.sku ?? ""}`).join("\n"),
@@ -146,7 +146,7 @@ export default function Admin() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [imagePreview, setImagePreview] = useState("");
+  const [imageUrlInput, setImageUrlInput] = useState("");
 
   useEffect(() => {
     document.title = `Store admin | FORM & FOUND`;
@@ -231,14 +231,14 @@ export default function Admin() {
   function openNewProduct() {
     setMessage("");
     setError("");
-    setImagePreview("");
+    setImageUrlInput("");
     setEditor({ ...blankEditor });
   }
 
   function openEdit(product: AdminProduct) {
     setMessage("");
     setError("");
-    setImagePreview(product.image_url);
+    setImageUrlInput("");
     setEditor(editorFromProduct(product, variants));
   }
 
@@ -270,7 +270,8 @@ export default function Admin() {
       if ((editor.status === "Sold out" || editor.status === "Coming soon") && totalStock !== 0) {
         throw new Error("Sold-out and coming-soon products must have zero stock across all variants.");
       }
-      const gallery = editor.gallery.split(/\r?\n/).map((url) => url.trim()).filter(Boolean);
+      const images = editor.images.map((url) => url.trim()).filter(Boolean);
+      if (!images.length) throw new Error("Add at least one product photo.");
       const savedId = await saveAdminProduct({
         ...(editor.id ? { id: editor.id } : {}),
         slug,
@@ -280,8 +281,8 @@ export default function Admin() {
         collection: editor.collection.trim() || null,
         price_npr: price,
         compare_at_price_npr: compareAtPrice,
-        image_url: editor.image.trim(),
-        gallery,
+        image_url: images[0],
+        gallery: images.slice(1),
         status: editor.status,
         publication_status: editor.visibility,
         sku: editor.sku.trim() || null,
@@ -301,20 +302,72 @@ export default function Admin() {
     }
   }
 
-  async function handleImage(file: File | undefined) {
-    if (!file || !editor) return;
+  async function handleImages(fileList: FileList | null) {
+    const files = fileList ? Array.from(fileList) : [];
+    if (!files.length || !editor) return;
     setBusy(true);
     setError("");
+    setMessage("Uploading photos…");
     try {
-      const uploadedUrl = await uploadProductImage(file);
-      updateEditor("image", uploadedUrl);
-      setImagePreview(uploadedUrl);
-      setMessage("Image uploaded. Save the product to keep this change.");
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        const uploadedUrl = await uploadProductImage(file);
+        uploadedUrls.push(uploadedUrl);
+        setEditor((current) => current
+          ? { ...current, images: [...current.images, uploadedUrl] }
+          : current);
+      }
+      setMessage(`${uploadedUrls.length} photo${uploadedUrls.length === 1 ? "" : "s"} uploaded. Save the product to keep this change.`);
     } catch (cause) {
+      setMessage("");
       setError(cause instanceof Error ? cause.message : "Image upload failed.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function addImageUrl() {
+    if (!editor) return;
+    let url: URL;
+    try {
+      url = new URL(imageUrlInput.trim());
+    } catch {
+      setError("Enter a valid HTTP or HTTPS image URL.");
+      return;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      setError("Enter a valid HTTP or HTTPS image URL.");
+      return;
+    }
+    if (editor.images.includes(url.href)) {
+      setError("This photo is already in the gallery.");
+      return;
+    }
+    updateEditor("images", [...editor.images, url.href]);
+    setImageUrlInput("");
+    setError("");
+  }
+
+  function moveImage(index: number, offset: -1 | 1) {
+    if (!editor) return;
+    const nextIndex = index + offset;
+    if (nextIndex < 0 || nextIndex >= editor.images.length) return;
+    const images = [...editor.images];
+    [images[index], images[nextIndex]] = [images[nextIndex], images[index]];
+    updateEditor("images", images);
+  }
+
+  function removeImage(index: number) {
+    if (!editor) return;
+    updateEditor("images", editor.images.filter((_, imageIndex) => imageIndex !== index));
+  }
+
+  function makePrimary(index: number) {
+    if (!editor || index === 0) return;
+    const images = [...editor.images];
+    const [primary] = images.splice(index, 1);
+    images.unshift(primary);
+    updateEditor("images", images);
   }
 
   async function changeVisibility(product: AdminProduct, nextVisibility: Visibility) {
@@ -368,7 +421,7 @@ export default function Admin() {
     duplicate.slug = uniqueSlug;
     duplicate.visibility = "draft";
     duplicate.featured = false;
-    setImagePreview(duplicate.image);
+    setImageUrlInput("");
     setEditor(duplicate);
     setMessage("A draft copy is ready. Choose a unique product name and slug before saving.");
     setError("");
@@ -546,10 +599,35 @@ export default function Admin() {
               </fieldset>
 
               <fieldset><legend>PRODUCT PHOTOGRAPHY</legend>
-                <label>Primary image URL<input required type="url" value={editor.image} onChange={(event) => { updateEditor("image", event.target.value); setImagePreview(event.target.value); }} placeholder="Upload a photo or paste an image URL" /></label>
-                <label className="admin-upload">Upload image<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={busy} onChange={(event) => void handleImage(event.target.files?.[0])} /><small>JPG, PNG, WebP, or AVIF · max 8 MB.</small></label>
-                {imagePreview && <img className="admin-image-preview" src={imagePreview} alt={`Preview of ${editor.name || "product image"}`} />}
-                <label>Gallery image URLs<textarea rows={3} value={editor.gallery} onChange={(event) => updateEditor("gallery", event.target.value)} placeholder="One image URL per line (optional)" /></label>
+                <label className="admin-upload">Upload photos<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple disabled={busy} onChange={(event) => { void handleImages(event.currentTarget.files); event.currentTarget.value = ""; }} /><small>JPG, PNG, WebP, or AVIF · max 8 MB per photo. Uploads require administrator access.</small></label>
+                <div className="admin-image-url">
+                  <label htmlFor="admin-image-url">Add photo by URL</label>
+                  <div><input id="admin-image-url" type="url" value={imageUrlInput} onChange={(event) => setImageUrlInput(event.target.value)} placeholder="https://…" />
+                    <button className="button button-outline" type="button" disabled={busy || !imageUrlInput.trim()} onClick={addImageUrl}>ADD URL</button>
+                  </div>
+                </div>
+                {editor.images.length ? (
+                  <div className="admin-photo-grid" aria-label="Product photos">
+                    {editor.images.map((image, index) => (
+                      <article className="admin-photo-item" key={`${image}-${index}`}>
+                        <img src={image} alt={`${editor.name || "Product"} photo ${index + 1}`} loading="lazy" onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = "/product-placeholder.svg";
+                        }} />
+                        <div className="admin-photo-caption">
+                          <strong>{index === 0 ? "PRIMARY PHOTO" : `PHOTO ${index + 1}`}</strong>
+                          <div className="admin-photo-actions">
+                            {index > 0 && <button type="button" disabled={busy} onClick={() => makePrimary(index)}>MAKE PRIMARY</button>}
+                            <button type="button" aria-label={`Move photo ${index + 1} earlier`} disabled={busy || index === 0} onClick={() => moveImage(index, -1)}>←</button>
+                            <button type="button" aria-label={`Move photo ${index + 1} later`} disabled={busy || index === editor.images.length - 1} onClick={() => moveImage(index, 1)}>→</button>
+                            <button type="button" aria-label={`Remove photo ${index + 1}`} disabled={busy} onClick={() => removeImage(index)}>REMOVE</button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : <p className="admin-photo-empty">No photos added yet. Add at least one photo before saving.</p>}
+                <small>Photos are saved in order; the first photo is shown on product cards and is the primary photo. Removing a photo unlinks it from this product but leaves its stored file intact.</small>
               </fieldset>
 
               <fieldset><legend>SIZES, COLOURS & INVENTORY</legend>

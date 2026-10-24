@@ -847,11 +847,15 @@
 
 .detail-thumbnails {
   display: flex;
+  overflow-x: auto;
   gap: 0.55rem;
   margin-top: 0.6rem;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
 }
 
 .detail-thumbnails button {
+  flex: 0 0 64px;
   width: 64px;
   border: 1px solid var(--color-line);
   padding: 0;

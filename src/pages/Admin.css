@@ -683,11 +683,96 @@
   padding: 0.6rem;
 }
 
-.admin-image-preview {
-  width: 150px;
+.admin-image-url > label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.admin-image-url > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+}
+
+.admin-image-url .button {
+  min-height: 43px;
+  padding: 0.65rem 0.8rem;
+  color: var(--color-text);
+  background: transparent;
+  border-color: var(--color-border);
+  font-size: 0.6rem;
+}
+
+.admin-image-url .button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.admin-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 0.65rem;
+}
+
+.admin-photo-item {
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  background: var(--color-panel);
+}
+
+.admin-photo-item > img {
+  display: block;
+  width: 100%;
   aspect-ratio: 4 / 5;
   object-fit: cover;
-  background: var(--color-panel);
+  background: var(--color-panel-light);
+}
+
+.admin-photo-caption {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.6rem;
+}
+
+.admin-photo-caption > strong {
+  color: var(--color-accent);
+  font-size: 0.55rem;
+  letter-spacing: 0.09em;
+}
+
+.admin-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.admin-photo-actions button {
+  min-height: 30px;
+  border: 1px solid var(--color-border);
+  padding: 0.35rem 0.45rem;
+  color: var(--color-text);
+  background: transparent;
+  font-size: 0.52rem;
+  cursor: pointer;
+}
+
+.admin-photo-actions button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.admin-photo-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.admin-photo-empty {
+  margin: 0;
+  border: 1px dashed var(--color-border);
+  padding: 1rem;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  line-height: 1.6;
 }
 
 .admin-toggles {

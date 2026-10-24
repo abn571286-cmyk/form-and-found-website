@@ -103,6 +103,7 @@ export async function uploadProductImage(file: File) {
   };
   const extension = extensions[file.type];
   if (!extension) throw new Error("Choose a JPG, PNG, WebP, or AVIF image.");
+  if (file.size === 0) throw new Error("Choose an image file that is not empty.");
   if (file.size > 8 * 1024 * 1024) throw new Error("Image must be 8 MB or smaller.");
 
   const path = `${crypto.randomUUID()}.${extension}`;

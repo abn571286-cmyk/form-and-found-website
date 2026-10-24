@@ -27,8 +27,8 @@ export default function ProductDetail() {
   }
 
   const related = products.filter((item) => item.id !== product.id && item.category.split("/")[0] === product.category.split("/")[0]).slice(0, 2);
-  const images = product.images?.length ? product.images : [product.image];
-  const activeImage = images.includes(selectedImage) ? selectedImage : images[0];
+  const images = [...new Set([product.image, ...(product.images ?? [])].filter(Boolean))];
+  const activeImage = images.includes(selectedImage) ? selectedImage : images[0] ?? "/product-placeholder.svg";
   const variantStock = size && color ? getVariantStock(product, size, color) : undefined;
   const unavailable = product.status === "Sold out" || product.status === "Coming soon" || variantStock === 0;
   const canAdd = isPurchasableVariant(product, size, color) &&
@@ -68,7 +68,7 @@ export default function ProductDetail() {
             />
           </div>
           {images.length > 1 && (
-            <div className="detail-thumbnails" aria-label={`${product.name} product images`}>
+            <div className="detail-thumbnails" role="group" aria-label={`${product.name} product images`}>
               {images.map((image, index) => (
                 <button
                   key={image}
