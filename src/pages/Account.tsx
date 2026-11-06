@@ -8,6 +8,13 @@ import "./Account.css";
 
 type AccountMode = "login" | "signup";
 
+function getAccountNextPath(search: string) {
+  const nextPath = new URLSearchParams(search).get("next");
+  return nextPath?.startsWith("/") && !nextPath.startsWith("//") && nextPath !== "/account"
+    ? nextPath
+    : null;
+}
+
 export default function Account({ embedded = false }: { embedded?: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -52,6 +59,11 @@ export default function Account({ embedded = false }: { embedded?: boolean }) {
     };
   }, []);
 
+  useEffect(() => {
+    const nextPath = getAccountNextPath(location.search);
+    if (user && nextPath) navigate(nextPath, { replace: true });
+  }, [location.search, navigate, user]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -75,7 +87,9 @@ export default function Account({ embedded = false }: { embedded?: boolean }) {
             data: {
               full_name: name.trim(),
             },
-            emailRedirectTo: `${window.location.origin}/account`,
+            emailRedirectTo: `${window.location.origin}/account${getAccountNextPath(location.search)
+              ? `?next=${encodeURIComponent(getAccountNextPath(location.search) ?? "")}`
+              : ""}`,
           },
         });
 
@@ -103,9 +117,6 @@ export default function Account({ embedded = false }: { embedded?: boolean }) {
         setUser(data.user);
         setMessage("You are now signed in.");
         setPassword("");
-        if (new URLSearchParams(location.search).get("next") === "/checkout") {
-          navigate("/checkout", { replace: true });
-        }
       }
     } catch (err) {
       setError(

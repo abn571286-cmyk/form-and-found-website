@@ -599,6 +599,11 @@ export default function AccountDashboard({
                   <p>{addresses.length} saved {addresses.length === 1 ? "address" : "addresses"}</p>
                   <button type="button" className="text-link" onClick={() => openSection("addresses")}>Manage addresses ↗</button>
                 </article>
+                <article className="account-summary-card">
+                  <p className="account-eyebrow">CUSTOMER CARE</p>
+                  <p>Have a question about a piece or an order? We’re happy to help.</p>
+                  <Link className="text-link" to="/messages">Message our team ↗</Link>
+                </article>
               </div>
               <div className="account-section-heading">
                 <div><p className="account-eyebrow">YOUR LATEST ACTIVITY</p><h2>Recent orders<span>.</span></h2></div>

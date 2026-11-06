@@ -223,6 +223,38 @@ export type Database = {
           notification_status?: "not_configured" | "sent" | "failed";
         }
       >;
+      chat_conversations: Table<
+        {
+          id: string;
+          customer_id: string;
+          product_id: string;
+          status: "open" | "resolved";
+          created_at: string;
+          updated_at: string;
+          last_message_at: string;
+        },
+        {
+          customer_id: string;
+          product_id: string;
+          status?: "open" | "resolved";
+        }
+      >;
+      chat_messages: Table<
+        {
+          id: string;
+          conversation_id: string;
+          sender_id: string;
+          sender_role: "customer" | "admin";
+          content: string;
+          created_at: string;
+          read_at: string | null;
+        },
+        {
+          id?: string;
+          conversation_id: string;
+          content: string;
+        }
+      >;
       order_notification_attempts: Table<
         {
           id: string;
@@ -288,6 +320,13 @@ export type Database = {
           p_provider_transaction_id: string;
           p_verified_amount_npr: number;
         };
+        Returns: undefined;
+      };
+      open_chat_conversation: { Args: { p_product_id: string }; Returns: string };
+      create_chat_conversation: { Args: { p_product_id: string }; Returns: string };
+      mark_chat_messages_read: { Args: { p_conversation_id: string }; Returns: undefined };
+      set_chat_conversation_status: {
+        Args: { p_conversation_id: string; p_status: string };
         Returns: undefined;
       };
     };

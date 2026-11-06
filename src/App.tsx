@@ -28,6 +28,7 @@ import NewArrivals from "./pages/NewArrivals";
 import Admin from "./pages/Admin";
 import Account from "./pages/Account";
 import PaymentResult from "./pages/PaymentResult";
+import ChatWorkspace from "./pages/ChatWorkspace";
 
 function Header() {
   const { itemCount, subtotal } = useCart();
@@ -89,9 +90,9 @@ function Header() {
     }
     if (event.key !== "Tab" || !dialogRef.current) return;
 
-    const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+    const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
       'button:not([disabled]), input:not([disabled]), a[href]',
-    )];
+    ));
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (event.shiftKey && document.activeElement === first) {
@@ -378,6 +379,7 @@ function Footer() {
             <Link to="/cart">Your bag</Link>
             <Link to="/wishlist">Wishlist</Link>
             <Link to="/account">My account</Link>
+            <Link to="/messages">Customer messages</Link>
           </div>
         </div>
 
@@ -670,6 +672,7 @@ export default function App() {
         <Route path="/search" element={<PageFrame><Search /></PageFrame>} />
         <Route path="/contact" element={<PageFrame><Contact /></PageFrame>} />
         <Route path="/account" element={<PageFrame><Account /></PageFrame>} />
+        <Route path="/messages" element={<PageFrame><ChatWorkspace /></PageFrame>} />
         {/* Admin stays separate from the storefront */}
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<PageFrame><NotFound /></PageFrame>} />

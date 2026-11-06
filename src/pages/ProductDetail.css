@@ -118,6 +118,10 @@
   cursor: not-allowed;
 }
 
+.detail-chat-button {
+  margin-top: 12px;
+}
+
 .detail-note {
   color: #92948a;
   font-size: 12px;

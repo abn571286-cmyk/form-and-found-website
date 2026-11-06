@@ -112,6 +112,10 @@ export default function ProductDetail() {
             <button type="button" className="button button-lime button-full" disabled={unavailable} onClick={handleAddToBag}>{unavailable ? (variantStock === 0 ? "SOLD OUT" : product.status.toUpperCase()) : "ADD TO BAG ↗"}</button>
             <button className={`wishlist-detail${has(product.id) ? " is-saved" : ""}`} type="button" aria-pressed={has(product.id)} onClick={() => toggle(product.id)}>{has(product.id) ? "♥ SAVED" : "♡ SAVE"}</button>
           </div>
+          <Link className="button button-outline button-full detail-chat-button" to={`/messages?product=${encodeURIComponent(product.id)}`}>
+            ASK ABOUT THIS PRODUCT ↗
+          </Link>
+          <p className="form-note">Not sure about something? Ask us — a real person from our team will get back to you. Sign in so we can keep your conversation together.</p>
           {message && <p role="status" aria-live="polite" className={message.startsWith("Added") ? "success-note" : "error-note"}>{message}</p>}
           {message.startsWith("Added") && <button type="button" className="text-link view-bag-link" onClick={() => navigate("/cart")}>VIEW YOUR BAG ↗</button>}
           {product.materials && <details className="product-accordion"><summary>MATERIALS</summary><p>{product.materials}</p></details>}

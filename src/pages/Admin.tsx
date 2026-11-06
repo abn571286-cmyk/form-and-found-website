@@ -18,6 +18,7 @@ import {
   type AdminVariantInput,
 } from "../lib/admin-products";
 import { supabase } from "../lib/supabase";
+import ChatWorkspace from "./ChatWorkspace";
 import "./Admin.css";
 
 type Visibility = "draft" | "published" | "archived";
@@ -139,7 +140,7 @@ export default function Admin() {
   const [orderItems, setOrderItems] = useState<AdminOrderItem[]>([]);
   const [paymentTransactions, setPaymentTransactions] = useState<AdminPaymentTransaction[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [section, setSection] = useState<"products" | "inventory" | "orders">("products");
+  const [section, setSection] = useState<"products" | "inventory" | "orders" | "messages">("products");
   const [query, setQuery] = useState("");
   const [visibilityFilter, setVisibilityFilter] = useState<"all" | Visibility>("all");
   const [editor, setEditor] = useState<EditorValues | null>(null);
@@ -491,6 +492,7 @@ export default function Admin() {
           <button type="button" className={`admin-nav-item${section === "products" ? " is-current" : ""}`} onClick={() => setSection("products")}>Products <span>{products.length}</span></button>
           <button type="button" className={`admin-nav-item${section === "inventory" ? " is-current" : ""}`} onClick={() => setSection("inventory")}>Inventory <span>{totalUnits} units</span></button>
           <button type="button" className={`admin-nav-item${section === "orders" ? " is-current" : ""}`} onClick={() => setSection("orders")}>Orders <span>{orders.length}</span></button>
+          <button type="button" className={`admin-nav-item${section === "messages" ? " is-current" : ""}`} onClick={() => setSection("messages")}>Messages <span>LIVE</span></button>
           <p className="admin-sidebar-note">Orders and payments stay disabled in the storefront until their server-side flow and provider setup are completed.</p>
         </aside>
 
@@ -554,7 +556,7 @@ export default function Admin() {
               })}
               {variants.length === 0 && <div className="admin-empty"><h2>No variant stock recorded.</h2><p>Add a product with verified sizes, colours, and stock quantities to start an inventory overview.</p><button className="button button-lime" type="button" onClick={openNewProduct}>ADD A PRODUCT ↗</button></div>}
             </div>
-          </> : <>
+          </> : section === "orders" ? <>
             <div className="admin-heading"><div><p className="eyebrow">ORDER OPERATIONS / SERVER DATA</p><h1>ORDERS<span>.</span></h1><p>Payment status is separate. Only verified provider callbacks may mark an order paid.</p></div></div>
             <div className="admin-orders-list">
               {orders.map((order) => (
@@ -568,7 +570,7 @@ export default function Admin() {
               ))}
               {orders.length === 0 && <div className="admin-empty"><h2>No orders yet.</h2><p>Orders are only created by the authenticated, server-validated order procedure after delivery fees are configured.</p></div>}
             </div>
-          </>}
+          </> : <ChatWorkspace admin />}
         </section>
       </div>
 
